@@ -1,6 +1,20 @@
 # N-Body-Simulator
 
+using [Raylib](https://www.raylib.com/)
+
+## Controls
+
+- Arrow Keys ( Left + Right ) to control time step
+- Space to invert gravity ( make them repel each other )
+- Mouse click and drag to make a planet and set direction with velocity
 
 
-https://user-images.githubusercontent.com/37984032/149824021-a1c05fa5-d1d1-46de-b8e4-789a6f13e205.mp4
+## Build Instructions
+```
+mkdir build && cd build
+cmake ..
+make && ./Gravitation
+```
+
+https://user-images.githubusercontent.com/37984032/149824164-4bb5ca8f-0278-4d04-8ec3-aa4cc5b50fd2.mp4
 
