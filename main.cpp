@@ -8,8 +8,6 @@
 const int screenWidth = 1280;
 const int screenHeight = 720;
 
-
-
 float gravity_dir = 1.0;
 float time_scale = 1.0;
 
@@ -89,7 +87,7 @@ void UpdateForces(float delta){
         for(int j=0;j<planets.size();j++){
             Planet p = planets[i];
             Planet other = planets[j];
-            // crude implementation of F= Gm1m2/r^2 vectorized to direction
+            // crude implementation of F= Gm1m2/r^2 a^ vectorized to direction
             if(p.name != other.name){ 
                 Vector2 direction = {p.position.x - other.position.x,p.position.y - other.position.y};
                 float distance = vectorLength(direction);
@@ -116,7 +114,7 @@ void UpdatePlanets(float delta){
 }
 
 int main(){
-    populatePlanets(128);
+    populatePlanets(512);
     using RAYLIB_H::DrawTextEx;
     SetConfigFlags(FLAG_MSAA_4X_HINT);  
     InitWindow(screenWidth, screenHeight, "Planetary Chaos?");
@@ -156,7 +154,6 @@ int main(){
 
         BeginDrawing();
                 ClearBackground(WHITE);
-                
                 BlendMode(BLEND_ADDITIVE);
                     DrawTextureRec(pass1.texture,(Rectangle){ 0, 0, (float)pass1.texture.width, (float)pass1.texture.height },(Vector2){0,0},WHITE);
                 EndBlendMode();
