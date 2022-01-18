@@ -1,15 +1,16 @@
 #include<raylib.h>
+#include<raygui.h>
 #include<vector>
 #include<iostream>
 #include<cmath>
 
 #define void void
 
-const int screenWidth = 1280;
-const int screenHeight = 720;
+int screenWidth = 1280;
+int screenHeight = 720;
 
 float gravity_dir = 1.0;
-float time_scale = 1.0;
+float time_scale = 0.5;
 int MAX_PLANETS = 512;
 
 
@@ -77,8 +78,8 @@ void populatePlanets(int MAX=3){
     for(int i=0;i<MAX;i++){
         Planet p;
         p.position = (Vector2){(float)i/MAX * screenWidth,(float)GetRandomValue(0,screenHeight)};
-        p.velocity = (Vector2){(float)GetRandomValue(1,10),(float)GetRandomValue(1,10)};
-        p.radius = (float)GetRandomValue(2,5);
+        p.velocity = (Vector2){(float)GetRandomValue(-10,10),(float)GetRandomValue(-10,10)};
+        p.radius = (float)GetRandomValue(5,10);
         p.mass = p.radius*p.radius;
         p.color = ColorFromHSV(255*(float)i/(float)MAX,0.8,1);
         p.name = std::string("Planet ") + std::to_string(i);
@@ -108,29 +109,12 @@ void OffBoundDelete(Planet p){
         }
 }
 
-void OffBoundMirror(){
-    for(int i=0;i<planets.size();i++){
-        if(planets[i].position.x > screenWidth){
-            planets[i].position.x = 0;
-        }
-        if(planets[i].position.x < 0){
-            planets[i].position.x = screenWidth;
-        }
-        if(planets[i].position.y > screenHeight){
-            planets[i].position.y = 0;
-        }
-        if(planets[i].position.y < 0){
-            planets[i].position.y = screenHeight;
-        }
-    }
-}
-
 void MergePlanets(int indexA,int indexB){
     Planet a = planets[indexA];
     Planet b = planets[indexB];
     float mass = a.mass+b.mass;
     Vector2 pos = vectorAvg(a.position,b.position,a.mass/mass,b.mass/mass);
-    Vector2 vel = vectorAvg(a.velocity,b.velocity,vectorLength(a.velocity)*a.mass/mass,vectorLength(b.velocity)*b.mass/mass);
+    Vector2 vel = vectorAvg(a.velocity,b.velocity,a.mass,b.mass);
     float radius = sqrt(mass/PI);
     Color color = (Color){(a.mass*a.color.r+b.mass*b.color.r)/mass,(a.mass*a.color.g+b.mass*b.color.g)/mass,(a.mass*a.color.b+b.mass*b.color.b)/mass,255};
     std::string name = std::string("Merged ") + a.name + " and " + b.name;
@@ -153,50 +137,54 @@ void UpdateForces(float delta){
                 OffBoundDelete(p);
                 OffBoundDelete(other);
             }
-
-            Vector2 direction = {p.position.x - other.position.x,p.position.y - other.position.y};
-            float distance = vectorLength(direction);
-            
-            if(vectorLength(vectorSub(p.position,other.position)) > (p.mass+other.mass)){
-                //DrawLineV(p.position,other.position,(Color){255 - (distance/std::max(screenHeight,screenWidth)),0,0,255});
+            if(vectorLength(vectorSub(p.position,other.position)) > (p.mass+other.mass)/2.0){
                 continue;
             }else{
-                DrawLineV(p.position,other.position,(Color){255,255,255,20});
+                DrawLineV(p.position,other.position,(Color){other.color.r,other.color.g,other.color.b,3});
             }
+            
             
             // crude implementation of F= Gm1m2/r^2 a^ vectorized to direction
             //planets too close then merge them
             if(p.id != other.id){ 
-                if(CheckCollisionCircles(p.position,0.55*p.radius,other.position,other.radius)){
+                if(CheckCollisionCircles(p.position,0.55*p.radius,other.position,0.55*other.radius)){
                     MergePlanets(i,j);
                 }
-                float forceMagnitude = 0.5*(p.mass*other.mass)/(distance*distance);
+                Vector2 direction = {p.position.x - other.position.x,p.position.y - other.position.y};
+                float distance = vectorLength(direction);
+                float forceMagnitude = 0.05*(p.mass*other.mass)/(distance*distance);
                 force.x -= gravity_dir*forceMagnitude*direction.x;
                 force.y -= gravity_dir*forceMagnitude*direction.y;
             }
         }
-        planets[i].velocity.x += force.x*delta;
-        planets[i].velocity.y += force.y*delta;
+        planets[i].velocity.x += force.x*delta/time_scale;
+        planets[i].velocity.y += force.y*delta/time_scale;
     }
 }
 
 void UpdatePlanets(float delta){
     UpdateForces(delta/10.0);
     for(int i=0;i<planets.size();i++){
-        //OffBoundMirror();
         planets[i].position.x += planets[i].velocity.x*delta*time_scale;
         planets[i].position.y += planets[i].velocity.y*delta*time_scale;
     }
 }
 
 int main(){
+
+    screenWidth = 1920;
+    screenHeight = 1080;
+    planets.push_back(Planet());
     populatePlanets(MAX_PLANETS);
     using RAYLIB_H::DrawTextEx;
     SetConfigFlags(FLAG_MSAA_4X_HINT);  
     InitWindow(screenWidth, screenHeight, "Planetary Chaos?");
 
     Shader BlurShader = LoadShader(0, "/home/pac/Documents/secretstuff/gravitational/assets/blur.fs");
+
     bool initPlanetMouse = false;
+    float chanceRad = 0.0;
+
     RenderTexture2D pass1 = LoadRenderTexture(screenWidth,screenHeight);
     RenderTexture2D pass2 = LoadRenderTexture(screenWidth,screenHeight);
     RenderTexture2D pass3 = LoadRenderTexture(screenWidth,screenHeight);
@@ -204,9 +192,10 @@ int main(){
     SetTargetFPS(75);
     while (!WindowShouldClose()){
         Vector2 cacheMousePos;
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)){
             cacheMousePos = GetMousePosition();  
             initPlanetMouse = true;
+            chanceRad = 30.0;
             
         }
         if(IsMouseButtonReleased(MOUSE_LEFT_BUTTON)){
@@ -215,8 +204,8 @@ int main(){
                 cacheMousePos.y = screenHeight - cacheMousePos.y;
                 Planet p;
                 p.position = cacheMousePos;
-                p.velocity = (Vector2){-mousePos.x + cacheMousePos.x, -mousePos.y + cacheMousePos.y};
-                p.radius = 10;
+                p.velocity = (Vector2){(-mousePos.x + cacheMousePos.x)/time_scale, (-mousePos.y + cacheMousePos.y)/time_scale};
+                p.radius = 30;
                 p.mass = PI*p.radius*p.radius;
                 p.color = (Color){255,255,255,255};
                 p.id = current_MAX_ID;
@@ -226,6 +215,24 @@ int main(){
                 initPlanetMouse = false;
                 std::cout << "Added planet:" << std::to_string(p.id) << std::endl;
         }
+        if(IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)){
+            Vector2 mousePos = GetMousePosition();
+                mousePos.y = screenHeight - mousePos.y;
+                cacheMousePos.y = screenHeight - cacheMousePos.y;
+                Planet p;
+                p.position = cacheMousePos;
+                p.velocity = (Vector2){0,0};
+                p.radius = vectorLength(vectorSub(mousePos,cacheMousePos));
+                p.mass = PI*p.radius*p.radius;
+                p.color = (Color){255,255,255,255};
+                p.id = current_MAX_ID;
+                p.name = "Planet " + std::to_string(current_MAX_ID);
+                current_MAX_ID++;
+                planets.push_back(p);
+                initPlanetMouse = false;
+                std::cout << "Added planet:" << std::to_string(p.id) << std::endl;
+        }
+        
 
         BeginTextureMode(pass2);
             DrawPlanets(42);
@@ -251,7 +258,11 @@ int main(){
                 EndBlendMode();
                 DrawTextureRec(pass3.texture,(Rectangle){ 0, 0, (float)pass3.texture.width, (float)pass3.texture.height },(Vector2){0,0},(Color){255,255,255,42});
                 if(initPlanetMouse){
-                    DrawCircleLines(cacheMousePos.x,cacheMousePos.y,10,(Color){255,255,255,255});
+                    Vector2 mousePos = GetMousePosition();
+                    if(IsMouseButtonDown(MOUSE_RIGHT_BUTTON)){
+                        chanceRad = vectorLength(vectorSub(mousePos,cacheMousePos));
+                    }
+                    DrawCircleLines(cacheMousePos.x,cacheMousePos.y,chanceRad,(Color){255,255,255,255});
                     DrawLine(cacheMousePos.x,cacheMousePos.y,GetMousePosition().x,GetMousePosition().y,(Color){255,255,255,255});
                 }
                 DrawText((std::string("Gravity: ") + std::to_string(gravity_dir) + (std::string(" | TimeScale: ") + std::to_string(time_scale))).c_str(),10,10,20,(Color){255,255,255,255});
@@ -263,7 +274,12 @@ int main(){
         if(IsKeyPressed(KEY_R)){
             planets.clear();
             populatePlanets(MAX_PLANETS);
+            pass2 = LoadRenderTexture(screenWidth,screenHeight);
+            pass3 = LoadRenderTexture(screenWidth,screenHeight);
         }
-        // add new planet
+
+        if(IsKeyPressed(KEY_S) || IsKeyPressed(KEY_PRINT_SCREEN)){
+            ExportImage(LoadImageFromTexture(pass3.texture), "screenshot.png");
+        }
     }
 }

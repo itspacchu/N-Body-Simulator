@@ -18,6 +18,16 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
+ifeq ($(PLATFORM),PLATFORM_WEB)
+    EMSDK_PATH          = /usr/lib/emsdk
+    EMSCRIPTEN_PATH     = $(EMSDK_PATH)/upstream/emscripten
+    CLANG_PATH          = $(EMSDK_PATH)/upstream/bin
+    PYTHON_PATH         = $(EMSDK_PATH)/python/3.9.2-1_64bit
+    NODE_PATH           = $(EMSDK_PATH)/node/14.15.5_64bit/bin
+    export PATH         = $(EMSDK_PATH);$(EMSCRIPTEN_PATH);$(CLANG_PATH);$(NODE_PATH);$(PYTHON_PATH);C:\raylib\MinGW\bin:$$(PATH)
+endif
+
+
 
 set(CMAKE_C_STANDARD 11) # Requires C11 standard
 
@@ -29,3 +39,4 @@ if (${PLATFORM} STREQUAL "Web")
     # Tell Emscripten to build an example.html file.
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
 endif()
+
